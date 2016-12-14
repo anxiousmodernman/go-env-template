@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"strings"
@@ -12,12 +11,12 @@ import (
 
 var (
 	templatePath = flag.String("t", "", "path to the template file")
-	target       = flag.String("f", "", "path to the file to be created or overwritten; will be created if it does not exist")
+	target       = flag.String("f", "", "path to the file to be created or overwritten; write to stdout if not provided")
 )
 
 func main() {
 	flag.Parse()
-	if err := Run(*templatePath, ""); err != nil {
+	if err := Run(*templatePath, *target); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -26,25 +25,22 @@ func main() {
 // output path. If no output path is provided, write to stdout.
 func Run(input, output string) error {
 
-	var stream io.Writer
-	stream = os.Stdout
-	if output != "" {
-		var err error
-		stream, err = os.Open(output)
-		if err != nil {
-			return fmt.Errorf("could not open outputfile %v", err)
-		}
-	}
-
 	tmpl, err := template.ParseFiles(input)
 	if err != nil {
 		return err
 	}
 
 	env := LoadEnv()
-	tmpl.Execute(stream, env)
+	if output == "" {
+		return tmpl.Execute(os.Stdout, env)
+	}
+	f, err := os.Create(output)
+	if err != nil {
+		return fmt.Errorf("could not open outputfile %v", err)
+	}
+	defer f.Close()
 
-	return nil
+	return tmpl.Execute(f, env)
 }
 
 // LoadEnv reads every environment variable into an Env struct's embedded map.
@@ -72,8 +68,3 @@ func LoadEnv() Env {
 type Env struct {
 	Vars map[string]string
 }
-
-var example = `#!/bin/bash
-
-echo "Your value for HOME is {{ index .Vars "HOME" }}"
-`

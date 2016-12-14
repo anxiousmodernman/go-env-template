@@ -11,12 +11,16 @@ func TestRun(t *testing.T) {
 
 	os.Setenv("ABCDEF", "caterpillar")
 
+	// We are really just using ioutil.Tempfile to generate a random name.
+	// The file is immediately closed, and only the name is passed to Run.
 	tmp, err := ioutil.TempFile("testfixtures", "temp")
 	if err != nil {
 		t.Errorf("error created temp file: %v", err)
 	}
 	tmp.Close()
 	defer os.Remove(tmp.Name())
+
+	t.Logf("created temporary file %s", tmp.Name())
 
 	err = Run("testfixtures/template.properties", tmp.Name())
 	if err != nil {
